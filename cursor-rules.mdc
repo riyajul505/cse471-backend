@@ -89,22 +89,49 @@ const resources = {
   offlineHash: String // Service worker versioning
 };
 
-// 6. Interactive Simulations
+// 6. Interactive Simulations - ENHANCED & IMPLEMENTED
 const simulations = {
   _id: ObjectId(),
-  title: String,
-  subject: String,
-  stateSchema: Schema.Types.Mixed, // Dynamic state template
-  courseId: { type: ObjectId, ref: "courses" }
-};
-
-// 7. Simulation States (Student Progress)
-const simulationStates = {
-  _id: ObjectId(),
-  studentId: { type: ObjectId, ref: "users", index: true },
-  simulationId: { type: ObjectId, ref: "simulations" },
-  stateData: Schema.Types.Mixed, // JSON snapshots
-  lastUpdated: Date
+  studentId: { type: ObjectId, ref: "users", required: true, index: true },
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  prompt: { type: String, required: true, maxlength: 500 }, // Original student prompt
+  subject: { type: String, enum: ['chemistry', 'physics', 'biology', 'general'] },
+  level: { type: Number, min: 1, max: 5, required: true },
+  experimentType: { type: String, required: true },
+  virtualLab: {
+    equipment: [String],
+    chemicals: [String],
+    procedure: [String],
+    safetyNotes: [String]
+  },
+  objectives: [String],
+  expectedOutcome: String,
+  estimatedDuration: Number, // minutes
+  difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },
+  state: {
+    status: { type: String, enum: ['not_started', 'in_progress', 'paused', 'completed'] },
+    currentStep: Number,
+    progress: Number, // 0-100
+    userInputs: Schema.Types.Mixed,
+    observations: [{
+      step: Number,
+      timestamp: Date,
+      observation: String
+    }],
+    results: Schema.Types.Mixed,
+    startedAt: Date,
+    lastActiveAt: Date,
+    completedAt: Date
+  },
+  aiGenerationData: {
+    model: String,
+    generatedAt: Date,
+    processingTime: Number,
+    apiVersion: String
+  },
+  createdAt: Date,
+  updatedAt: Date
 };
 
 // ======================== ASSESSMENT SYSTEM ========================
@@ -228,12 +255,17 @@ const notifications = {
   userId: { type: ObjectId, ref: "users", index: true },
   type: { 
     type: String, 
-    enum: ["grade", "achievement", "session", "submission", "path_selection"] // Added path_selection
+    enum: [
+      "grade", "achievement", "session", "submission", "path_selection",
+      "quiz_completed", "child_quiz_completed", "child_achievement_unlocked", 
+      "student_achievement_unlocked", "simulation_generated", "simulation_started", 
+      "simulation_completed", "simulation_achievement"
+    ]
   },
   message: String,
   link: String, // Deep link to resource
   read: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now } // Updated with default
+  createdAt: { type: Date, default: Date.now }
 };
 
 // 18. Analytics Engine (Aggregated)
@@ -303,6 +335,33 @@ collections.forEach(coll => {
 // - Parents can view children's learning progress
 // - Path selection status for each child
 // - Selected level tracking and monitoring
+
+// Teacher Management System (COMPLETED)
+// - Class creation with level-based auto-enrollment
+// - Resource upload with level-specific targeting
+// - Student progress monitoring across all levels
+// - Class and resource management dashboards
+// - Quiz and achievement notifications to teachers
+
+// Quiz & Achievement System (COMPLETED)
+// - Quiz result storage and retrieval (POST /api/quiz/save-result)
+// - Automatic achievement generation (Gold/Silver/Bronze/Participation)
+// - Student quiz history tracking (GET /api/quiz/history/:studentId)
+// - Achievement unlocking with notifications (GET /api/quiz/achievements/:studentId)
+// - Quiz statistics for parents and teachers
+// - Comprehensive notification system for quiz events
+
+// AI-Powered Virtual Simulation System (COMPLETED)
+// - AI simulation generation using Google Gemini API (POST /api/simulation/generate)
+// - Complete simulation state management (not_started, in_progress, paused, completed)
+// - Real-time simulation progress tracking (PUT /api/simulation/:id/state)
+// - Interactive virtual lab experiments (chemistry, physics, biology)
+// - Student simulation dashboard with pagination (GET /api/simulation/student/:id)
+// - Parent monitoring of children's simulation progress (GET /api/simulation/parent/:id/children)
+// - Achievement system for simulation completion
+// - Rate limiting for API calls (5 simulations/hour, 1 state update/second)
+// - Comprehensive notification system for simulation events
+// - Fallback mock data when AI API unavailable
 description:
 globs:
 alwaysApply: false

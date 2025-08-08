@@ -13,7 +13,15 @@ const notificationSchema = new mongoose.Schema({
       "quiz_completed",
       "child_quiz_completed",
       "child_achievement_unlocked",
-      "student_achievement_unlocked"
+      "student_achievement_unlocked",
+      "simulation_generated",
+      "simulation_started",
+      "simulation_completed",
+      "simulation_achievement",
+      "game_achievement_unlocked",
+      "child_high_score",
+      "game_hint_received",
+      "game_level_completed"
     ],
     required: true
   },

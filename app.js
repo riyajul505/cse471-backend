@@ -6,6 +6,8 @@ import userRoutes from './routes/user.js';
 import notificationRoutes from './routes/notification.js';
 import teacherRoutes from './routes/teacher.js';
 import quizRoutes from './routes/quiz.js';
+import simulationRoutes from './routes/simulation.js';
+import gameRoutes from './routes/game.js';
 
 const app = express();
 
@@ -36,6 +38,8 @@ app.use('/api/user', userRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/teacher', teacherRoutes);
 app.use('/api/quiz', quizRoutes);
+app.use('/api/simulation', simulationRoutes);
+app.use('/api/game', gameRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
