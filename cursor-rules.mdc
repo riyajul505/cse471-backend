@@ -1,0 +1,309 @@
+# Cambridge Explorer Labs - Express Backend Rules
+
+## 🚀 Core Architecture Pattern
+**MVC Structure with Service Layer**  
+
+
+├── config/         # Environment configuration
+├── controllers/    # Route handlers (thin layer)
+├── services/       # Business logic (e.g., AI operations)
+├── models/         # MongoDB schemas via Mongoose
+├── middleware/     # Custom middleware
+├── routes/         # Route definitions
+├── utils/          # Helper functions
+└── app.js          # Main application
+
+
+
+
+Database Schema: camb (database-name)
+
+// ======================== CORE COLLECTIONS ========================
+// 1. Users Collection (Multi-tenant with role isolation) - UPDATED
+const users = {
+  _id: ObjectId(),
+  email: { type: String, unique: true, index: true },
+  password: String, // bcrypt-hashed
+  role: { type: String, enum: ["student", "teacher", "parent", "admin"] },
+  schoolId: { type: ObjectId(), ref: "schools" }, // Multi-tenancy
+  profile: {
+    firstName: String,
+    lastName: String,
+    grade: Number,         // Only students
+    subjects: [String],    // Only teachers
+    children: [{ type: ObjectId, ref: "users" }] // Only parents
+  },
+  learningStyle: {         // For AI pathway generation
+    type: String, 
+    enum: ["visual", "auditory", "kinesthetic"] 
+  },
+  lastActive: Date,
+  // Learning path selection (for students) - NEW FIELDS
+  pathSelected: { type: Boolean, default: false },
+  selectedLevel: { type: Number, min: 1, max: 5 }
+};
+
+// 2. Schools Collection (Tenant Isolation)
+const schools = {
+  _id: ObjectId(),
+  name: String,
+  licenseKey: { type: String, unique: true },
+  adminId: { type: ObjectId, ref: "users" }
+};
+
+// 3. AI Learning Pathways (GPT-4 Generated)
+const pathways = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users", index: true },
+  sequence: [{
+    order: Number,
+    type: { type: String, enum: ["simulation", "quiz", "project", "resource"] },
+    topic: String,
+    resourceId: { type: ObjectId, ref: "resources" }, // Optional
+    completed: { type: Boolean, default: false }
+  }],
+  generatedAt: { type: Date, index: true },
+  expiresAt: Date // TTL index for auto-refresh
+};
+
+// ======================== LEARNING MODULES ========================
+// 4. Course Modules (Curriculum Structure)
+const courses = {
+  _id: ObjectId(),
+  subject: String,
+  topics: [{
+    name: String,
+    level: { type: Number, min: 1, max: 3 } // Difficulty tier
+  }],
+  schoolId: { type: ObjectId, ref: "schools" }
+};
+
+// 5. Resource Library (Offline-cached)
+const resources = {
+  _id: ObjectId(),
+  title: String,
+  type: { type: String, enum: ["worksheet", "video", "simulation"] },
+  tags: [String], // Indexed for search
+  url: String,
+  courseId: { type: ObjectId, ref: "courses" },
+  offlineHash: String // Service worker versioning
+};
+
+// 6. Interactive Simulations
+const simulations = {
+  _id: ObjectId(),
+  title: String,
+  subject: String,
+  stateSchema: Schema.Types.Mixed, // Dynamic state template
+  courseId: { type: ObjectId, ref: "courses" }
+};
+
+// 7. Simulation States (Student Progress)
+const simulationStates = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users", index: true },
+  simulationId: { type: ObjectId, ref: "simulations" },
+  stateData: Schema.Types.Mixed, // JSON snapshots
+  lastUpdated: Date
+};
+
+// ======================== ASSESSMENT SYSTEM ========================
+// 8. Quizzes & Assessments
+const quizzes = {
+  _id: ObjectId(),
+  title: String,
+  questions: [{
+    text: String,
+    type: { type: String, enum: ["mcq", "coding"] },
+    options: [String],
+    correctAnswer: String || [String] // Array for multiple correct
+  }],
+  difficulty: Number, // 1-5 scale
+  courseId: { type: ObjectId, ref: "courses" }
+};
+
+// 9. Quiz Attempts (AI Tutor Input)
+const quizAttempts = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users" },
+  quizId: { type: ObjectId, ref: "quizzes" },
+  responses: [{
+    questionId: ObjectId,
+    answer: String,
+    isCorrect: Boolean
+  }],
+  wrongAnswers: [ObjectId], // For AI tutor triggers
+  startedAt: Date,
+  duration: Number // Seconds
+};
+
+// 10. AI Tutor Logs (GPT Explanations)
+const tutorLogs = {
+  _id: ObjectId(),
+  attemptId: { type: ObjectId, ref: "quizAttempts" },
+  questionId: ObjectId,
+  studentAnswer: String,
+  explanation: String, // GPT-generated
+  analogyExample: String,
+  requestedAt: Date
+};
+
+// ======================== PROJECTS & ACHIEVEMENTS ========================
+// 11. Projects (Version Controlled)
+const projects = {
+  _id: ObjectId(),
+  title: String,
+  description: String,
+  courseId: { type: ObjectId, ref: "courses" }
+};
+
+// 12. Project Submissions
+const submissions = {
+  _id: ObjectId(),
+  projectId: { type: ObjectId, ref: "projects" },
+  studentId: { type: ObjectId, ref: "users" },
+  versions: [{
+    version: Number,
+    fileUrl: String,
+    createdAt: Date,
+    teacherFeedback: String
+  }],
+  currentVersion: Number
+};
+
+// 13. AI Achievements (DALL-E Generated)
+const achievements = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users", index: true },
+  title: String, // e.g., "Chemistry Master"
+  prompt: String, // DALL-E generation prompt
+  imageUrl: String,
+  sharedCount: Number,
+  unlockedAt: Date
+};
+
+// ======================== MANAGEMENT SYSTEM ========================
+// 14. Classes & Enrollment
+const classes = {
+  _id: ObjectId(),
+  name: String,
+  teacherId: { type: ObjectId, ref: "users" },
+  students: [{ type: ObjectId, ref: "users" }],
+  schoolId: { type: ObjectId, ref: "schools" }
+};
+
+// 15. Lab Sessions (Calendar-based)
+const labSessions = {
+  _id: ObjectId(),
+  title: String,
+  type: { type: String, enum: ["group", "1-on-1"] },
+  teacherId: { type: ObjectId, ref: "users" },
+  studentIds: [{ type: ObjectId, ref: "users" }],
+  start: { type: Date, index: true },
+  end: Date,
+  status: { type: String, enum: ["scheduled", "completed", "cancelled"] }
+};
+
+// 16. Q&A Threads (Moderated)
+const qaThreads = {
+  _id: ObjectId(),
+  classId: { type: ObjectId, ref: "classes" },
+  title: String,
+  messages: [{
+    userId: { type: ObjectId, ref: "users" },
+    text: String,
+    attachments: [String],
+    flags: [{ 
+      userId: ObjectId, 
+      reason: String 
+    }],
+    createdAt: Date
+  }],
+  isResolved: Boolean
+};
+
+// 17. Real-time Notifications - UPDATED & IMPLEMENTED
+const notifications = {
+  _id: ObjectId(),
+  userId: { type: ObjectId, ref: "users", index: true },
+  type: { 
+    type: String, 
+    enum: ["grade", "achievement", "session", "submission", "path_selection"] // Added path_selection
+  },
+  message: String,
+  link: String, // Deep link to resource
+  read: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now } // Updated with default
+};
+
+// 18. Analytics Engine (Aggregated)
+const analytics = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users" },
+  completionRate: Number, // %
+  avgQuizScore: Number,
+  activityHeatmap: [Number], // Weekly activity
+  lastUpdated: Date
+};
+
+
+Critical Indexes for Performance
+
+// Compound indexes
+db.users.createIndex({ schoolId: 1, role: 1 }) 
+db.pathways.createIndex({ studentId: 1, expiresAt: 1 })
+db.simulationStates.createIndex({ studentId: 1, lastUpdated: -1 })
+db.quizAttempts.createIndex({ studentId: 1, startedAt: -1 })
+db.labSessions.createIndex({ teacherId: 1, start: 1 })
+
+// TTL Indexes
+db.notifications.createIndex({ createdAt: 1 }, { expireAfterSeconds: 2592000 }) // 30-day expiry
+db.pathways.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }) // Auto-delete expired
+
+// Text Search
+db.resources.createIndex({ tags: "text", title: "text" })
+
+
+Schema Validation Script
+// Enable strict schema validation on all collections
+const collections = [
+  "users", "schools", "pathways", "courses", "resources", 
+  "simulations", "simulationStates", "quizzes", "quizAttempts",
+  "tutorLogs", "projects", "submissions", "achievements",
+  "classes", "labSessions", "qaThreads", "notifications", "analytics"
+];
+
+collections.forEach(coll => {
+  db.runCommand({
+    collMod: coll,
+    validator: { $jsonSchema: `schema_${coll}` }, // Reference predefined schema
+    validationLevel: "strict"
+  });
+});
+
+// ======================== IMPLEMENTED FEATURES ========================
+// Authentication System (COMPLETED)
+// - User registration with role-based profiles
+// - JWT-based login system
+// - Parent-child relationship management
+// - Multi-tenant school isolation
+
+// Learning Path Selection System (COMPLETED)
+// - Students select learning levels (1-5)
+// - Path selection tracking in user profile
+// - Dashboard access control based on path selection
+
+// Notification System (COMPLETED)
+// - Real-time notifications for path selection
+// - Parent notifications when child selects path
+// - Notification read/unread status tracking
+// - TTL-based automatic cleanup (30 days)
+
+// Parent Monitoring System (COMPLETED)
+// - Parents can view children's learning progress
+// - Path selection status for each child
+// - Selected level tracking and monitoring
+description:
+globs:
+alwaysApply: false
+---

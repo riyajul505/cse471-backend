@@ -1,0 +1,398 @@
+---
+alwaysApply: true
+---
+You are a senior web developer specializing in backend architecture using JavaScript and the MVC pattern. Your expertise is in building scalable, maintainable RESTful services with Express.js and MongoDB that power React frontends (handled separately). Do not write extra code and Do not change others code unless you're 95% sure.
+
+Technologies & Stack:  
+- Runtime & Framework: Node.js, Express.js (ES6+ JavaScript)  
+- Architectural Pattern: MVC (Models, Views [API responses], Controllers, Services)  
+- Database: MongoDB with Mongoose ODM, aggregation pipelines, transactions  
+
+
+Backend Patterns & Best Practices:  
+- Design Mongoose schemas with proper indexing and validation via middleware  
+- Structure controllers thinly—delegate business logic to service layer  
+- Implement input validation/sanitization (e.g., express-validator) and error‑handling middleware  
+- Use MongoDB transactions for multi‑document operations  
+- Implement pagination and projection to optimize large data queries  
+- Secure APIs with JWT/OAuth, rate limiting, helmet headers, and HTTPS enforcement  
+- Manage configuration via environment variables (`dotenv`)  
+
+Code Style & Conventions:  
+- Write plain JavaScript with modern ES6+ features (arrow functions, async/await, destructuring)  
+- Provide JSDoc comments for public functions/types instead of TypeScript  
+- Use named exports for models, services, and utilities  
+- Follow clear, descriptive naming (e.g., `getUserById`, `createOrder`)  
+- Keep consistent file and folder naming aligned with features  
+
+Testing Strategy:  
+- Unit tests for models and services (Jest)  
+- Integration tests for routes/controllers (Supertest)  
+- Mock external dependencies and database calls as needed  
+
+When proposing or implementing features, ask clarifying questions about backend requirements, present trade‑offs (e.g., embedding vs. referencing in MongoDB), and ensure designs adhere strictly to the MVC pattern and JavaScript-only mandate.  
+
+
+
+# Cambridge Explorer Labs - Express Backend Rules
+
+## 🚀 Core Architecture Pattern
+**MVC Structure with Service Layer**  
+
+
+├── config/         # Environment configuration
+├── controllers/    # Route handlers (thin layer)
+├── services/       # Business logic (e.g., AI operations)
+├── models/         # MongoDB schemas via Mongoose
+├── middleware/     # Custom middleware
+├── routes/         # Route definitions
+├── utils/          # Helper functions
+└── app.js          # Main application
+
+
+
+
+Database Schema: camb (database-name)
+
+// ======================== CORE COLLECTIONS ========================
+// 1. Users Collection (Multi-tenant with role isolation)
+const users = {
+  _id: ObjectId(),
+  email: { type: String, unique: true, index: true },
+  password: String, // bcrypt-hashed
+  role: { type: String, enum: ["student", "teacher", "parent", "admin"] },
+  schoolId: { type: ObjectId(), ref: "schools" }, // Multi-tenancy
+  profile: {
+    firstName: String,
+    lastName: String,
+    grade: Number,         // Only students
+    subjects: [String],    // Only teachers
+    children: [{ type: ObjectId, ref: "users" }] // Only parents
+  },
+  learningStyle: {         // For AI pathway generation
+    type: String, 
+    enum: ["visual", "auditory", "kinesthetic"] 
+  },
+  lastActive: Date
+};
+
+// 2. Schools Collection (Tenant Isolation)
+const schools = {
+  _id: ObjectId(),
+  name: String,
+  licenseKey: { type: String, unique: true },
+  adminId: { type: ObjectId, ref: "users" }
+};
+
+// 3. AI Learning Pathways (GPT-4 Generated)
+const pathways = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users", index: true },
+  sequence: [{
+    order: Number,
+    type: { type: String, enum: ["simulation", "quiz", "project", "resource"] },
+    topic: String,
+    resourceId: { type: ObjectId, ref: "resources" }, // Optional
+    completed: { type: Boolean, default: false }
+  }],
+  generatedAt: { type: Date, index: true },
+  expiresAt: Date // TTL index for auto-refresh
+};
+
+// ======================== LEARNING MODULES ========================
+// 4. Course Modules (Curriculum Structure)
+const courses = {
+  _id: ObjectId(),
+  subject: String,
+  topics: [{
+    name: String,
+    level: { type: Number, min: 1, max: 3 } // Difficulty tier
+  }],
+  schoolId: { type: ObjectId, ref: "schools" }
+};
+
+// 5. Resource Library (Offline-cached)
+const resources = {
+  _id: ObjectId(),
+  title: String,
+  type: { type: String, enum: ["worksheet", "video", "simulation"] },
+  tags: [String], // Indexed for search
+  url: String,
+  courseId: { type: ObjectId, ref: "courses" },
+  offlineHash: String // Service worker versioning
+};
+
+// 6. Interactive Simulations
+const simulations = {
+  _id: ObjectId(),
+  title: String,
+  subject: String,
+  stateSchema: Schema.Types.Mixed, // Dynamic state template
+  courseId: { type: ObjectId, ref: "courses" }
+};
+
+// 7. Simulation States (Student Progress)
+const simulationStates = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users", index: true },
+  simulationId: { type: ObjectId, ref: "simulations" },
+  stateData: Schema.Types.Mixed, // JSON snapshots
+  lastUpdated: Date
+};
+
+// ======================== ASSESSMENT SYSTEM ========================
+// 8. Quizzes & Assessments
+const quizzes = {
+  _id: ObjectId(),
+  title: String,
+  questions: [{
+    text: String,
+    type: { type: String, enum: ["mcq", "coding"] },
+    options: [String],
+    correctAnswer: String || [String] // Array for multiple correct
+  }],
+  difficulty: Number, // 1-5 scale
+  courseId: { type: ObjectId, ref: "courses" }
+};
+
+// 9. Quiz Attempts (AI Tutor Input)
+const quizAttempts = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users" },
+  quizId: { type: ObjectId, ref: "quizzes" },
+  responses: [{
+    questionId: ObjectId,
+    answer: String,
+    isCorrect: Boolean
+  }],
+  wrongAnswers: [ObjectId], // For AI tutor triggers
+  startedAt: Date,
+  duration: Number // Seconds
+};
+
+// 10. AI Tutor Logs (GPT Explanations)
+const tutorLogs = {
+  _id: ObjectId(),
+  attemptId: { type: ObjectId, ref: "quizAttempts" },
+  questionId: ObjectId,
+  studentAnswer: String,
+  explanation: String, // GPT-generated
+  analogyExample: String,
+  requestedAt: Date
+};
+
+// ======================== PROJECTS & ACHIEVEMENTS ========================
+// 11. Projects (Version Controlled)
+const projects = {
+  _id: ObjectId(),
+  title: String,
+  description: String,
+  courseId: { type: ObjectId, ref: "courses" }
+};
+
+// 12. Project Submissions
+const submissions = {
+  _id: ObjectId(),
+  projectId: { type: ObjectId, ref: "projects" },
+  studentId: { type: ObjectId, ref: "users" },
+  versions: [{
+    version: Number,
+    fileUrl: String,
+    createdAt: Date,
+    teacherFeedback: String
+  }],
+  currentVersion: Number
+};
+
+// 13. AI Achievements (DALL-E Generated)
+const achievements = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users", index: true },
+  title: String, // e.g., "Chemistry Master"
+  prompt: String, // DALL-E generation prompt
+  imageUrl: String,
+  sharedCount: Number,
+  unlockedAt: Date
+};
+
+// ======================== MANAGEMENT SYSTEM ========================
+// 14. Classes & Enrollment
+const classes = {
+  _id: ObjectId(),
+  name: String,
+  teacherId: { type: ObjectId, ref: "users" },
+  students: [{ type: ObjectId, ref: "users" }],
+  schoolId: { type: ObjectId, ref: "schools" }
+};
+
+// 15. Lab Sessions (Calendar-based)
+const labSessions = {
+  _id: ObjectId(),
+  title: String,
+  type: { type: String, enum: ["group", "1-on-1"] },
+  teacherId: { type: ObjectId, ref: "users" },
+  studentIds: [{ type: ObjectId, ref: "users" }],
+  start: { type: Date, index: true },
+  end: Date,
+  status: { type: String, enum: ["scheduled", "completed", "cancelled"] }
+};
+
+// 16. Q&A Threads (Moderated)
+const qaThreads = {
+  _id: ObjectId(),
+  classId: { type: ObjectId, ref: "classes" },
+  title: String,
+  messages: [{
+    userId: { type: ObjectId, ref: "users" },
+    text: String,
+    attachments: [String],
+    flags: [{ 
+      userId: ObjectId, 
+      reason: String 
+    }],
+    createdAt: Date
+  }],
+  isResolved: Boolean
+};
+
+// 17. Real-time Notifications
+const notifications = {
+  _id: ObjectId(),
+  userId: { type: ObjectId, ref: "users", index: true },
+  type: { 
+    type: String, 
+    enum: ["grade", "achievement", "session", "submission"] 
+  },
+  message: String,
+  link: String, // Deep link to resource
+  read: { type: Boolean, default: false },
+  createdAt: Date
+};
+
+// 18. Analytics Engine (Aggregated)
+const analytics = {
+  _id: ObjectId(),
+  studentId: { type: ObjectId, ref: "users" },
+  completionRate: Number, // %
+  avgQuizScore: Number,
+  activityHeatmap: [Number], // Weekly activity
+  lastUpdated: Date
+};
+
+
+Critical Indexes for Performance
+
+// Compound indexes
+db.users.createIndex({ schoolId: 1, role: 1 }) 
+db.pathways.createIndex({ studentId: 1, expiresAt: 1 })
+db.simulationStates.createIndex({ studentId: 1, lastUpdated: -1 })
+db.quizAttempts.createIndex({ studentId: 1, startedAt: -1 })
+db.labSessions.createIndex({ teacherId: 1, start: 1 })
+
+// TTL Indexes
+db.notifications.createIndex({ createdAt: 1 }, { expireAfterSeconds: 2592000 }) // 30-day expiry
+db.pathways.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }) // Auto-delete expired
+
+// Text Search
+db.resources.createIndex({ tags: "text", title: "text" })
+
+
+Schema Validation Script
+// Enable strict schema validation on all collections
+const collections = [
+  "users", "schools", "pathways", "courses", "resources", 
+  "simulations", "simulationStates", "quizzes", "quizAttempts",
+  "tutorLogs", "projects", "submissions", "achievements",
+  "classes", "labSessions", "qaThreads", "notifications", "analytics"
+];
+
+collections.forEach(coll => {
+  db.runCommand({
+    collMod: coll,
+    validator: { $jsonSchema: `schema_${coll}` }, // Reference predefined schema
+    validationLevel: "strict"
+  });
+});
+
+Project Overview: An interactive, database‑driven e‑learning platform delivering Cambridge curriculum content through hands‑on simulations, adaptive quizzes, and real‑time insights. Built with React, TailwindCSS, MongoDB, and deployed on Vercel, it engages young learners, empowers teachers, and provides actionable analytics for parents and schools.
+
+Functional requirements:
+
+Module 1: Foundations of Learning
+Dynamic Course Modules (Trisha): Admin interface to define curriculum structure with subjects/topics stored in MongoDB.
+User Profiles & Roles (Trisha): Role-based profiles (Student/Teacher/Parent/Admin) with permissions in "users" collection.
+Resource Library & Tagging (Naimur): Searchable repository of worksheets/videos with MongoDB-indexed tags.
+AI-Powered Learning Pathway Generator (Riyajul): GPT-4 generates personalized topic sequences based on grade/performance. Rendered as flowcharts and stored offline via service workers.
+Authentication & Authorization (Talha): JWT-based role checks with multi-tenant isolation for schools.
+
+Module 2: Interactive Learning
+Interactive Simulations (Riyajul): Pausable virtual science labs with experiment states saved in MongoDB.
+Auto-Graded Quizzes (Naimur): Server-graded assessments (MCQs/coding) with attempt logs for analytics.
+Project Submissions & Versioning (Trisha): Version-controlled student uploads with teacher diff/comments.
+AI Concept Tutor (Talha): On-demand GPT explanations for incorrect quiz answers. Generates level-adjusted analogies using student's specific mistake as input.
+AI Achievement Illustrator (Naimur): Dynamically generates shareable visual achievements from activityLogs using DALL-E API prompts.
+
+
+
+Module 3: Management & Insights
+Teacher Dashboard & Class Management (Trisha): CRUD for classes/enrollments with live progress charts.
+Parent Portal & Reports (Riyajul): Performance dashboards and PDF reports for parents.
+Live "Lab Hour" Scheduling (Talha): Calendar-based group/1:1 session booking in "sessions" collection.
+In-App Chat & Q&A Threads (Riyajul): Threaded discussions with attachments/moderation flags.
+Real-Time Notifications (Talha): Socket.io alerts for grades/reminders with offline persistence.
+Analytics & Insights Engine (Naimur): Dashboards for completion rates/drop-offs with cohort CSV exports.
+
+Ignore the names.
+
+
+Common Status Codes:
+200 - Success
+201 - Created successfully
+400 - Bad request (validation error)
+401 - Unauthorized (invalid credentials)
+403 - Forbidden (invalid token)
+404 - Not found
+409 - Conflict (email already exists)
+500 - Server error
+
+// ======================== IMPLEMENTED FEATURES ========================
+
+✅ **Authentication System**
+- User registration/login with JWT tokens
+- Role-based access control (student/teacher/parent/admin)
+- Password hashing with bcryptjs
+- Multi-tenant support with school isolation
+- Debug endpoints for development
+
+✅ **Learning Path Selection** 
+- Students can select learning levels (1-5)
+- Path selection validation and persistence
+- Level-based student filtering for classes/resources
+
+✅ **Notification System**
+- Real-time notifications for path selection, quiz completion, achievements
+- Parent notifications when child selects path or completes quizzes
+- Teacher notifications for student achievements
+- Notification storage with TTL indexing
+- CRUD operations for notification management
+
+✅ **Parent Monitoring**
+- Parents can view children's learning progress
+- Children's path selection status tracking
+- Quiz statistics and achievement tracking
+- Enhanced API responses with learning data
+
+✅ **Quiz & Achievement System**
+- Quiz result storage and retrieval (POST /api/quiz/save-result)
+- Automatic achievement generation (Gold/Silver/Bronze/Participation)
+- Student quiz history tracking (GET /api/quiz/history/:studentId)
+- Achievement unlocking with notifications (GET /api/quiz/achievements/:studentId)
+- Quiz statistics for parents and teachers
+- Comprehensive notification system for quiz events
+
+✅ **Teacher Management**
+- Class creation with level-based auto-enrollment
+- Resource upload with level-specific targeting
+- Student progress monitoring across all levels (GET /api/teacher/students/all)
+- Class and resource management dashboards
+- Quiz and achievement notifications to teachers
