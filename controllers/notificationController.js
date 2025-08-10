@@ -1,13 +1,24 @@
 import Notification from '../models/notificationModels.js';
 
-export const createNotification = async (userId, type, message, link = null) => {
+export const createNotification = async (notificationData) => {
   try {
-    const notification = new Notification({
-      userId,
-      type,
-      message,
-      link
-    });
+    // Support both old format (for backward compatibility) and new format
+    let notification;
+    
+    if (typeof notificationData === 'string') {
+      // Old format: createNotification(userId, type, message, link)
+      const [userId, type, message, link] = arguments;
+      notification = new Notification({
+        userId,
+        type,
+        message,
+        link
+      });
+    } else {
+      // New format: createNotification({ userId, type, message, data, link })
+      notification = new Notification(notificationData);
+    }
+    
     await notification.save();
     return notification;
   } catch (err) {
@@ -24,16 +35,15 @@ export const getUserNotifications = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(20);
     
-    res.json({
-      notifications: notifications.map(notif => ({
-        id: notif._id,
-        type: notif.type,
-        message: notif.message,
-        link: notif.link,
-        read: notif.read,
-        createdAt: notif.createdAt
-      }))
-    });
+    res.json(notifications.map(notif => ({
+      id: notif._id,
+      type: notif.type,
+      message: notif.message,
+      data: notif.data,
+      link: notif.link,
+      read: notif.read,
+      createdAt: notif.createdAt
+    })));
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

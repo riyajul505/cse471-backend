@@ -8,27 +8,28 @@ import teacherRoutes from './routes/teacher.js';
 import quizRoutes from './routes/quiz.js';
 import simulationRoutes from './routes/simulation.js';
 import gameRoutes from './routes/game.js';
+import assignmentRoutes from './routes/assignments.js';
 
 const app = express();
 
 connectDB();
 
-// CORS configuration - Allow frontend origin
+// CORS configuration - Standard JSON API
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 // Middleware for parsing JSON
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Debug middleware to log all requests
 app.use((req, res, next) => {
   const contentType = req.headers['content-type'] || 'none';
-  const bodyInfo = Object.keys(req.body).length > 0 ? req.body : 'empty';
+  const bodyInfo = Object.keys(req.body || {}).length > 0 ? req.body : 'empty';
   console.log(`${req.method} ${req.path}`, 'Body:', bodyInfo, 'Content-Type:', contentType);
   next();
 });
@@ -40,6 +41,7 @@ app.use('/api/teacher', teacherRoutes);
 app.use('/api/quiz', quizRoutes);
 app.use('/api/simulation', simulationRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/assignments', assignmentRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

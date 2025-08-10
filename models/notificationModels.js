@@ -21,11 +21,16 @@ const notificationSchema = new mongoose.Schema({
       "game_achievement_unlocked",
       "child_high_score",
       "game_hint_received",
-      "game_level_completed"
+      "game_level_completed",
+      "assignment_created",
+      "assignment_submitted",
+      "assignment_graded",
+      "assignment_deadline_reminder"
     ],
     required: true
   },
   message: { type: String, required: true },
+  data: { type: mongoose.Schema.Types.Mixed }, // Additional data for the notification
   link: String, // Deep link to resource
   read: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }

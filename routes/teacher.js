@@ -8,6 +8,7 @@ import {
   getTeacherResources,
   getAllStudentsForTeacher
 } from '../controllers/teacherController.js';
+import { getTeacherAssignments } from '../controllers/assignmentController.js';
 
 const router = express.Router();
 
@@ -23,5 +24,8 @@ router.get('/:teacherId/resources', getTeacherResources);
 
 // Student progress monitoring
 router.get('/students/all', getAllStudentsForTeacher);
+
+// Assignment management
+router.get('/:teacherId/assignments', getTeacherAssignments);
 
 export default router; 
