@@ -19,6 +19,7 @@ router.get('/students/level/:level', getStudentsByLevel);
 
 // Resource management
 router.post('/upload-resource', uploadResource);
+router.post('/resources', uploadResource); // Alternative endpoint for frontend compatibility
 router.get('/resources/level/:level', getResourcesByLevel);
 router.get('/:teacherId/resources', getTeacherResources);
 

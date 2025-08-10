@@ -182,7 +182,7 @@ export const uploadResource = async (req, res) => {
     }
     
     // Validate resource type
-    const validTypes = ['worksheet', 'video', 'document', 'image', 'simulation'];
+    const validTypes = ['worksheet', 'video', 'simulation', 'document', 'image'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({ 
         message: 'Invalid resource type', 
