@@ -273,6 +273,7 @@ export const uploadResource = async (req, res) => {
 };
 
 // Get resources by level (for students)
+// students will access the resources upoladed by teacher 
 export const getResourcesByLevel = async (req, res) => {
   try {
     const { level } = req.params;
