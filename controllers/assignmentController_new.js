@@ -296,11 +296,12 @@ export const getAssignmentWithSubmissions = async (req, res) => {
       } : null
     }));
 
-    // Calculate statistics
-    const totalSubmissions = submissions.length;
-    const gradedSubmissions = submissions.filter(s => s.grade).length;
+    // Calculate statistics based on formatted submissions status
+    const totalSubmissions = formattedSubmissions.length;
+    const gradedSubmissions = formattedSubmissions.filter(s => s.status === 'graded').length;
+    const submittedSubmissions = formattedSubmissions.filter(s => s.status === 'submitted').length;
     const averageScore = gradedSubmissions > 0 ? 
-      submissions.filter(s => s.grade).reduce((sum, s) => sum + s.grade.percentage, 0) / gradedSubmissions : 0;
+      formattedSubmissions.filter(s => s.status === 'graded').reduce((sum, s) => sum + s.grade.percentage, 0) / gradedSubmissions : 0;
 
     res.status(200).json({
       success: true,
@@ -323,7 +324,7 @@ export const getAssignmentWithSubmissions = async (req, res) => {
       statistics: {
         totalSubmissions,
         gradedSubmissions,
-        pendingGrades: totalSubmissions - gradedSubmissions,
+        pendingGrades: submittedSubmissions,
         averageScore: Math.round(averageScore)
       }
     });

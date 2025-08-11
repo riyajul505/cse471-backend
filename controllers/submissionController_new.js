@@ -58,7 +58,7 @@ export const getStudentAssignments = async (req, res) => {
 
       let assignmentStatus = 'available';
       if (submission) {
-        assignmentStatus = grade ? 'graded' : 'submitted';
+        assignmentStatus = (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : 'submitted';
       } else if (isOverdue) {
         assignmentStatus = 'overdue';
       }
@@ -81,7 +81,7 @@ export const getStudentAssignments = async (req, res) => {
           versionNumber: submission.versionNumber,
           submittedAt: submission.submittedAt,
           submissionLink: submission.submissionLink,
-          status: grade ? 'graded' : 'submitted',
+          status: (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : 'submitted',
           grade: grade ? { totalScore: grade.totalScore, maxScore: grade.maxScore, percentage: grade.percentage, letterGrade: grade.letterGrade } : null
         } : null,
         teacher: { name: `${assignment.teacherId.profile.firstName} ${assignment.teacherId.profile.lastName}`, email: assignment.teacherId.email },
@@ -167,7 +167,7 @@ export const getAssignmentDetailsForStudent = async (req, res) => {
 
     let status = 'available';
     if (submissions.length > 0) {
-      status = grade ? 'graded' : 'submitted';
+      status = (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : 'submitted';
     } else if (isOverdue) {
       status = 'overdue';
     }
@@ -199,7 +199,7 @@ export const getAssignmentDetailsForStudent = async (req, res) => {
         submittedAt: submission.submittedAt,
         submissionLink: submission.submissionLink,
         submissionNotes: submission.submissionNotes,
-        status: grade ? 'graded' : 'submitted',
+        status: (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : 'submitted',
         isLate: submission.isLate
       })),
       grade: grade ? {
@@ -452,7 +452,7 @@ export const getStudentSubmissionHistory = async (req, res) => {
       const grade = gradeMap.get(submission._id.toString());
       
       // Filter by status if requested
-      const submissionStatus = grade ? 'graded' : submission.status;
+      const submissionStatus = (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : submission.status;
       if (status && status !== submissionStatus) {
         return null;
       }

@@ -225,8 +225,9 @@ export const getTeacherAssignments = async (req, res) => {
         const submitted = uniqueStudents.length;
         const pending = totalStudents - submitted;
 
-        // Calculate grading statistics
-        const gradedSubmissions = submissions.filter(s => s.grade);
+        // Calculate grading statistics based on status
+        const gradedSubmissions = submissions.filter(s => s.grade && s.grade.totalScore !== undefined && s.grade.totalScore !== null);
+        const submittedSubmissions = submissions.filter(s => !s.grade || s.grade.totalScore === undefined || s.grade.totalScore === null);
         const graded = gradedSubmissions.length;
         const avgScore = graded > 0 ? 
           gradedSubmissions.reduce((sum, s) => sum + s.grade.percentage, 0) / graded : 0;
@@ -320,7 +321,7 @@ export const getAssignmentWithSubmissions = async (req, res) => {
       submissionLink: submission.submissionLink,
       submissionNotes: submission.submissionNotes,
       submittedAt: submission.submittedAt,
-      status: submission.grade ? 'graded' : 'submitted',
+      status: (submission.grade && submission.grade.totalScore !== undefined && submission.grade.totalScore !== null) ? 'graded' : 'submitted',
       isLate: submission.isLate,
       grade: submission.grade ? {
         totalScore: submission.grade.totalScore,
@@ -333,11 +334,12 @@ export const getAssignmentWithSubmissions = async (req, res) => {
       } : null
     }));
 
-    // Calculate statistics
-    const totalSubmissions = submissions.length;
-    const gradedSubmissions = submissions.filter(s => s.grade).length;
+    // Calculate statistics based on formatted submissions status
+    const totalSubmissions = formattedSubmissions.length;
+    const gradedSubmissions = formattedSubmissions.filter(s => s.status === 'graded').length;
+    const submittedSubmissions = formattedSubmissions.filter(s => s.status === 'submitted').length;
     const averageScore = gradedSubmissions > 0 ? 
-      submissions.filter(s => s.grade).reduce((sum, s) => sum + s.grade.percentage, 0) / gradedSubmissions : 0;
+      formattedSubmissions.filter(s => s.status === 'graded').reduce((sum, s) => sum + s.grade.percentage, 0) / gradedSubmissions : 0;
 
     res.status(200).json({
       success: true,
@@ -357,12 +359,12 @@ export const getAssignmentWithSubmissions = async (req, res) => {
         createdAt: assignment.createdAt
       },
       submissions: formattedSubmissions,
-      statistics: {
-        totalSubmissions,
-        gradedSubmissions,
-        pendingGrades: totalSubmissions - gradedSubmissions,
-        averageScore: Math.round(averageScore)
-      }
+              statistics: {
+          totalSubmissions,
+          gradedSubmissions,
+          pendingGrades: submittedSubmissions,
+          averageScore: Math.round(averageScore)
+        }
     });
 
   } catch (error) {

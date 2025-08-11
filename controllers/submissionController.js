@@ -185,7 +185,7 @@ export const getAssignmentDetailsForStudent = async (req, res) => {
 
     let status = 'available';
     if (submissions.length > 0) {
-      status = grade ? 'graded' : 'submitted';
+      status = (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : 'submitted';
     } else if (isOverdue) {
       status = 'overdue';
     }
@@ -217,7 +217,7 @@ export const getAssignmentDetailsForStudent = async (req, res) => {
         submittedAt: submission.submittedAt,
         submissionLink: submission.submissionLink,
         submissionNotes: submission.submissionNotes,
-        status: grade ? 'graded' : 'submitted',
+        status: (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : 'submitted',
         isLate: submission.isLate
       })),
       grade: grade ? {
@@ -459,7 +459,7 @@ export const getStudentSubmissionHistory = async (req, res) => {
       const grade = submission.grade; // Grade is embedded in submission
       
       // Filter by status if requested
-      const submissionStatus = grade ? 'graded' : submission.status;
+      const submissionStatus = (grade && grade.totalScore !== undefined && grade.totalScore !== null) ? 'graded' : submission.status;
       if (status && status !== submissionStatus) {
         return null;
       }
