@@ -9,7 +9,8 @@ dotenv.config();
 class AIService {
   constructor() {
     this.apiKey = process.env.GEMINI_API_KEY;
-    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+    // Align with frontend working endpoint
+    this.baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
   }
 
   /**

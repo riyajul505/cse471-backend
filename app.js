@@ -11,6 +11,7 @@ import gameRoutes from './routes/game.js';
 import assignmentRoutes from './routes/assignments.js';
 import qnaRoutes from './routes/qna.js';
 import labRoutes from './routes/lab.js';
+import reportRoutes from './routes/reports.js';
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/game', gameRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/qna', qnaRoutes);
 app.use('/api/lab', labRoutes);
+app.use('/api/reports', reportRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

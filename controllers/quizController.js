@@ -324,6 +324,87 @@ export const getStudentAchievements = async (req, res) => {
   }
 };
 
+// Get weak quiz attempts (<30%) for a student filtered by resourceId or resourceTitle
+export const getWeakQuizAttempts = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { resourceId, resourceTitle } = req.query;
+
+    // Validate student exists
+    const student = await User.findById(studentId);
+    if (!student || student.role !== 'student') {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    if (!resourceId && !resourceTitle) {
+      return res.status(400).json({
+        success: false,
+        message: 'Provide either resourceId or resourceTitle as a query parameter'
+      });
+    }
+
+    // Build filter
+    const filter = { studentId };
+    if (resourceId) filter.resourceId = resourceId;
+    if (resourceTitle) filter.resourceTitle = resourceTitle;
+
+    // Fetch attempts with score < 30
+    const results = await QuizResult.find({ ...filter, score: { $lt: 30 } }).sort({ completedAt: -1 });
+
+    const formatted = results.map((r) => {
+      // Build per-question details including selected options
+      const questions = Array.isArray(r.quizData?.questions) ? r.quizData.questions : [];
+      const selectedAnswers = Array.isArray(r.answers) ? r.answers : [];
+
+      const questionDetails = questions.map((q, idx) => {
+        const selectedIndex = selectedAnswers[idx];
+        const selectedOption = (Array.isArray(q.options) && selectedIndex != null) ? q.options[selectedIndex] : undefined;
+        const isCorrect = (typeof q.correctAnswer === 'number' && selectedIndex != null) ? (selectedIndex === q.correctAnswer) : undefined;
+        return {
+          id: q.id ?? idx + 1,
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          explanation: q.explanation,
+          selectedIndex,
+          selectedOption,
+          isCorrect
+        };
+      });
+
+      return {
+        id: r._id,
+        studentId: r.studentId,
+        resourceId: r.resourceId,
+        resourceTitle: r.resourceTitle,
+        score: r.score,
+        correctAnswers: r.correctAnswers,
+        totalQuestions: r.totalQuestions,
+        completedAt: r.completedAt,
+        questions: questionDetails
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalAttempts: formatted.length,
+        attempts: formatted
+      }
+    });
+  } catch (err) {
+    console.error('Get weak quiz attempts error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: err.message
+    });
+  }
+};
+
 // Save achievement endpoint
 export const saveAchievement = async (req, res) => {
   try {
