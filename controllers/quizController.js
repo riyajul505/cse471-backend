@@ -351,8 +351,8 @@ export const getWeakQuizAttempts = async (req, res) => {
     if (resourceId) filter.resourceId = resourceId;
     if (resourceTitle) filter.resourceTitle = resourceTitle;
 
-    // Fetch attempts with score < 30
-    const results = await QuizResult.find({ ...filter, score: { $lt: 30 } }).sort({ completedAt: -1 });
+    // Fetch last 3 recent attempts with score < 50
+    const results = await QuizResult.find({ ...filter, score: { $lt: 50 } }).sort({ completedAt: -1 }).limit(3);
 
     const formatted = results.map((r) => {
       // Build per-question details including selected options

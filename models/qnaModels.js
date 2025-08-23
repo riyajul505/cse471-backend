@@ -33,6 +33,10 @@ const qnaMessageSchema = new mongoose.Schema({
     ref: 'QnaMessage',
     default: function() { return this.replyToId || this._id; }
   },
+  isGeneralMessage: {
+    type: Boolean,
+    default: false
+  },
   timestamp: {
     type: Date,
     default: Date.now

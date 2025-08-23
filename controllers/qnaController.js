@@ -53,7 +53,8 @@ export const getLevelMessages = async (req, res) => {
           timestamp: reply.timestamp,
           isTeacher: reply.isTeacher,
           replyToId: reply.replyToId?.toString() || null,
-          threadId: reply.threadId?.toString() || null
+          threadId: reply.threadId?.toString() || null,
+          isGeneralMessage: reply.isGeneralMessage || false
         }));
 
         return {
@@ -72,6 +73,7 @@ export const getLevelMessages = async (req, res) => {
           level: message.level,
           replyToId: message.replyToId?.toString() || null,
           threadId: message.threadId?.toString() || message._id.toString(),
+          isGeneralMessage: message.isGeneralMessage || false,
           replies: formattedReplies
         };
       })
@@ -263,7 +265,8 @@ export const sendTeacherMessage = async (req, res) => {
       content,
       level: levelNum,
       replyToId: replyToId || null,
-      threadId: threadId || null
+      threadId: threadId || null,
+      isGeneralMessage: isGeneralMessage
     });
 
     const savedMessage = await message.save();
@@ -285,6 +288,7 @@ export const sendTeacherMessage = async (req, res) => {
           level: savedMessage.level,
           replyToId: savedMessage.replyToId?.toString() || null,
           threadId: savedMessage.threadId?.toString() || savedMessage._id.toString(),
+          isGeneralMessage: savedMessage.isGeneralMessage,
           replies: []
         }
       }

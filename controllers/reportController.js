@@ -242,16 +242,36 @@ function drawSummaryTiles(doc, pageWidth, tiles) {
 }
 
 async function generateAIInsights({ student, submissions, quizResults, achievements, labBookings, avgAssignmentPercentage, avgQuizScore }) {
+  // Enhanced attention span metrics
   const lateCount = submissions.filter(s => s.isLate).length;
   const lateRatio = submissions.length > 0 ? lateCount / submissions.length : 0;
   const completedLabs = labBookings.filter(b => b.status === 'completed').length;
   const labCompletionRatio = labBookings.length > 0 ? completedLabs / labBookings.length : 0;
+  
+  // Quiz-taking behavior analysis
+  const quizBehavior = analyzeQuizBehavior(quizResults);
+  
+  // Activity frequency analysis
+  const activityPatterns = analyzeActivityPatterns(submissions, quizResults, labBookings);
+  
+  // Task completion analysis
+  const completionMetrics = analyzeCompletionMetrics(submissions, quizResults, labBookings);
+  
+  // Comprehensive attention span assessment
+  const attentionSpan = assessAttentionSpan({
+    lateRatio,
+    labCompletionRatio,
+    quizBehavior,
+    activityPatterns,
+    completionMetrics
+  });
+  
   const accuracy = Math.round(((avgAssignmentPercentage || 0) + (avgQuizScore || 0)) / 2);
 
   const baseline = {
     focusAreas: avgQuizScore < 70 || avgAssignmentPercentage < 70 ? ['Reinforce fundamentals in current subject areas', 'Practice with targeted quizzes to build confidence'] : ['Maintain current study habits', 'Challenge with advanced practice sets'],
     weaknesses: avgQuizScore < 65 ? ['Low quiz accuracy across attempts'] : (avgAssignmentPercentage < 65 ? ['Assignment rubric criteria need attention'] : ['None significant at the moment']),
-    attentionSpan: lateRatio > 0.3 ? { status: 'needs attention', reason: 'High proportion of late submissions suggests time management or focus issues' } : (labCompletionRatio < 0.5 && labBookings.length > 0 ? { status: 'moderate', reason: 'Many lab bookings not completed' } : { status: 'okay', reason: 'On-time work and consistent completions' }),
+    attentionSpan: attentionSpan,
     accuracy: { percent: accuracy, comment: accuracy >= 80 ? 'Strong accuracy overall' : (accuracy >= 60 ? 'Developing accuracy' : 'Accuracy requires focused improvement') },
     studyPlan: [
       'Set 3 short, focused study sessions (25 minutes) per week',
@@ -313,8 +333,169 @@ function renderInsights(doc, insights, colors, pageWidth) {
 
   box('Focus Areas', insights.focusAreas || ['—'], '#10b981');
   box('Weaknesses', insights.weaknesses || ['—'], '#ef4444');
-  box('Attention Span', [`Status: ${insights.attentionSpan?.status || 'unknown'}`, `${insights.attentionSpan?.reason || ''}`], '#f59e0b');
+  box('Attention Span', [`Status: ${insights.attentionSpan?.status || 'unknown'}`, `${insights.attentionSpan?.reason || ''}`, `Quiz Behavior: ${insights.attentionSpan?.quizBehavior || 'N/A'}`, `Activity Pattern: ${insights.attentionSpan?.activityPattern || 'N/A'}`, `Completion Rate: ${insights.attentionSpan?.completionRate || 'N/A'}%`], '#f59e0b');
   box('Accuracy', [`${insights.accuracy?.percent ?? '—'}%`, `${insights.accuracy?.comment || ''}`], '#8b5cf6');
   box('Suggested Study Plan', insights.studyPlan || ['—'], '#2563eb');
+}
+
+// Enhanced attention span analysis functions
+function analyzeQuizBehavior(quizResults) {
+  if (quizResults.length === 0) return 'No quiz data available';
+  
+  // Analyze quiz retake patterns
+  const quizAttempts = {};
+  quizResults.forEach(quiz => {
+    const key = quiz.resourceId || quiz.resourceTitle;
+    if (!quizAttempts[key]) quizAttempts[key] = [];
+    quizAttempts[key].push(quiz);
+  });
+  
+  const retakeCount = Object.values(quizAttempts).filter(attempts => attempts.length > 1).length;
+  const avgAttemptsPerQuiz = Object.values(quizAttempts).reduce((sum, attempts) => sum + attempts.length, 0) / Object.keys(quizAttempts).length;
+  
+  // Analyze score improvement patterns
+  const improvementPatterns = Object.values(quizAttempts)
+    .filter(attempts => attempts.length > 1)
+    .map(attempts => {
+      const sorted = attempts.sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt));
+      const firstScore = sorted[0].score;
+      const lastScore = sorted[sorted.length - 1].score;
+      return lastScore - firstScore;
+    });
+  
+  const avgImprovement = improvementPatterns.length > 0 ? 
+    improvementPatterns.reduce((sum, improvement) => sum + improvement, 0) / improvementPatterns.length : 0;
+  
+  if (avgAttemptsPerQuiz > 2) return 'Frequent retakes, may indicate focus issues';
+  if (avgImprovement > 15) return 'Shows improvement through practice';
+  if (retakeCount > quizResults.length * 0.3) return 'High retake rate, needs confidence building';
+  return 'Consistent first-attempt performance';
+}
+
+function analyzeActivityPatterns(submissions, quizResults, labBookings) {
+  const allActivities = [
+    ...submissions.map(s => ({ type: 'assignment', date: new Date(s.submittedAt), completed: true })),
+    ...quizResults.map(q => ({ type: 'quiz', date: new Date(q.completedAt), completed: true })),
+    ...labBookings.map(l => ({ type: 'lab', date: new Date(l.createdAt), completed: l.status === 'completed' }))
+  ];
+  
+  if (allActivities.length === 0) return 'No activity data available';
+  
+  // Group by week to analyze frequency
+  const weeklyActivity = {};
+  allActivities.forEach(activity => {
+    const weekStart = new Date(activity.date);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekKey = weekStart.toISOString().split('T')[0];
+    
+    if (!weeklyActivity[weekKey]) weeklyActivity[weekKey] = 0;
+    weeklyActivity[weekKey]++;
+  });
+  
+  const activityWeeks = Object.keys(weeklyActivity).length;
+  const totalActivities = allActivities.length;
+  const avgActivitiesPerWeek = totalActivities / activityWeeks;
+  
+  // Analyze consistency
+  const activityValues = Object.values(weeklyActivity);
+  const consistency = activityValues.length > 1 ? 
+    (Math.max(...activityValues) - Math.min(...activityValues)) / Math.max(...activityValues) : 0;
+  
+  if (avgActivitiesPerWeek < 1) return 'Low activity frequency';
+  if (consistency < 0.3) return 'Consistent weekly engagement';
+  if (consistency > 0.7) return 'Irregular activity patterns';
+  return 'Moderate consistency in engagement';
+}
+
+function analyzeCompletionMetrics(submissions, quizResults, labBookings) {
+  const totalTasks = submissions.length + quizResults.length + labBookings.length;
+  if (totalTasks === 0) return { completionRate: 0, taskBreakdown: 'No tasks assigned' };
+  
+  const completedTasks = submissions.length + quizResults.length + 
+    labBookings.filter(l => l.status === 'completed').length;
+  
+  const completionRate = Math.round((completedTasks / totalTasks) * 100);
+  
+  const taskBreakdown = {
+    assignments: submissions.length,
+    quizzes: quizResults.length,
+    labs: labBookings.length,
+    completedLabs: labBookings.filter(l => l.status === 'completed').length
+  };
+  
+  return { completionRate, taskBreakdown };
+}
+
+function assessAttentionSpan({ lateRatio, labCompletionRatio, quizBehavior, activityPatterns, completionMetrics }) {
+  let score = 0;
+  let reasons = [];
+  
+  // Late submission penalty
+  if (lateRatio > 0.3) {
+    score -= 30;
+    reasons.push('High proportion of late submissions');
+  } else if (lateRatio > 0.1) {
+    score -= 15;
+    reasons.push('Some late submissions');
+  }
+  
+  // Lab completion assessment
+  if (labCompletionRatio < 0.5 && labCompletionRatio > 0) {
+    score -= 20;
+    reasons.push('Low lab session completion rate');
+  }
+  
+  // Quiz behavior assessment
+  if (quizBehavior.includes('focus issues') || quizBehavior.includes('retake')) {
+    score -= 25;
+    reasons.push('Quiz behavior suggests attention challenges');
+  } else if (quizBehavior.includes('improvement')) {
+    score += 15;
+    reasons.push('Shows learning improvement through practice');
+  }
+  
+  // Activity pattern assessment
+  if (activityPatterns.includes('Irregular') || activityPatterns.includes('Low frequency')) {
+    score -= 20;
+    reasons.push('Irregular or low activity patterns');
+  } else if (activityPatterns.includes('Consistent')) {
+    score += 15;
+    reasons.push('Consistent engagement patterns');
+  }
+  
+  // Completion rate assessment
+  if (completionMetrics.completionRate < 60) {
+    score -= 25;
+    reasons.push('Low task completion rate');
+  } else if (completionMetrics.completionRate > 85) {
+    score += 20;
+    reasons.push('High task completion rate');
+  }
+  
+  // Determine status based on score
+  let status, reason;
+  if (score >= 20) {
+    status = 'excellent';
+    reason = 'Strong attention span with consistent engagement and completion patterns';
+  } else if (score >= 0) {
+    status = 'okay';
+    reason = 'Generally good attention span with some areas for improvement';
+  } else if (score >= -30) {
+    status = 'moderate';
+    reason = 'Attention span needs improvement: ' + reasons.slice(0, 2).join(', ');
+  } else {
+    status = 'needs attention';
+    reason = 'Significant attention span concerns: ' + reasons.slice(0, 3).join(', ');
+  }
+  
+  return {
+    status,
+    reason,
+    quizBehavior,
+    activityPattern: activityPatterns,
+    completionRate: completionMetrics.completionRate,
+    score: score
+  };
 }
 
